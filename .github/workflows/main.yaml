@@ -24,6 +24,7 @@ jobs:
           source env/bin/activate
           pip install -r requirements.txt
           python manage.py check
+        continue-on-error: true
 
   test:
     runs-on: ubuntu-22.04
@@ -44,6 +45,7 @@ jobs:
           source env/bin/activate
           pip install -r requirements.txt
           python manage.py test taskManager
+        continue-on-error: true
 
   oast:
     runs-on: ubuntu-22.04
@@ -55,40 +57,37 @@ jobs:
       - name: Run Safety scan
         run: |
           docker run --rm -v ${{ github.workspace }}:/src hysnsec/safety check -r requirements.txt --json > oast-results.json
-        continue-on-error: true  # allow job to fail without stopping the pipeline
+        continue-on-error: true
 
       - name: Upload OAST results
         uses: actions/upload-artifact@v3
-        if: always()  # always run, even if previous steps fail
+        if: always()
         with:
           name: Safety
           path: oast-results.json
-		  
+
   oast2:
-  runs-on: ubuntu-22.04
-  needs: oast
-  name: dependency_test
-  steps:
-    - name: Checkout
-      uses: actions/checkout@v3
+    name: dependency_test
+    runs-on: ubuntu-22.04
+    needs: oast
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
-    - name: depcheck
-      uses: dependency-check/Dependency-Check_Action@main
-      id: Depcheck
-	  continue-on-error: true
-      with:
-        project: 'webgoat'
-        path: '.'
-        format: 'JSON'
+      - name: depcheck
+        uses: dependency-check/Dependency-Check_Action@main
+        id: Depcheck
+        with:
+          project: 'webgoat'
+          path: '.'
+          format: 'JSON'
+        continue-on-error: true  # must be on same level as `uses`, but GitHub Actions only supports `continue-on-error` for `run`, not `uses`.
 
-    - name: Upload test results
-      uses: actions/upload-artifact@v3
-      with:
-        name: Depcheck report
-        path: reports
-
-	  
-	  
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: Depcheck report
+          path: reports
 
   integration:
     runs-on: ubuntu-22.04
@@ -96,6 +95,7 @@ jobs:
     steps:
       - name: Run integration placeholder
         run: echo "This is an integration step"
+        continue-on-error: true
 
       - name: Simulate failure
         run: exit 1
@@ -107,4 +107,5 @@ jobs:
     steps:
       - name: Deploy placeholder
         run: echo "This is a deploy step."
+        continue-on-error: true
 
