@@ -88,10 +88,24 @@ jobs:
         with:
           name: Depcheck report
           path: reports
-
+		  
+  secret_scan:
+	name:trufflehog_secrets_canning
+	runs-on: ubuntu-22.04
+	needs: oast2
+	steps:
+	  - uses: actions/checkout@v3
+	  - run: docker run -rm -v $(pwd):/src hysnsec/trufflehog filesystem --directory=/src --json > trufflehog-output.json
+	    continue-on-error: true
+	  - uses: actions/upload-artifact@v4
+	    with: 
+		  name: Trufflehog
+		  path: trufflehog-output.json
+		if:always()
+	
   integration:
     runs-on: ubuntu-22.04
-    needs: oast
+    needs: secret_scan
     steps:
       - name: Run integration placeholder
         run: echo "This is an integration step"
