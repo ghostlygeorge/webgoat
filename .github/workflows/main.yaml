@@ -126,7 +126,7 @@ jobs:
 
   integration:
     runs-on: ubuntu-22.04
-    needs: bandit_sast
+    needs: sast
     steps:
       - name: Run integration placeholder
         run: echo "This is an integration step"
