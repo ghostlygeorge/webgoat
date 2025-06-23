@@ -81,7 +81,6 @@ jobs:
           project: 'webgoat'
           path: '.'
           format: 'JSON'
-        continue-on-error: true  # must be on same level as `uses`, but GitHub Actions only supports `continue-on-error` for `run`, not `uses`.
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -89,9 +88,28 @@ jobs:
           name: Depcheck report
           path: reports
 
+  secret_scan:
+    name: trufflehog_secrets_scanning
+    runs-on: ubuntu-22.04
+    needs: oast2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Run Trufflehog scan
+        run: docker run --rm -v ${{ github.workspace }}:/src hysnsec/trufflehog filesystem --directory=/src --json > trufflehog-output.json
+        continue-on-error: true
+
+      - name: Upload Trufflehog results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with: 
+          name: Trufflehog
+          path: trufflehog-output.json
+
   integration:
     runs-on: ubuntu-22.04
-    needs: oast
+    needs: secret_scan
     steps:
       - name: Run integration placeholder
         run: echo "This is an integration step"
@@ -101,7 +119,7 @@ jobs:
         run: exit 1
         continue-on-error: true
 
-  prod:
+  prodd:
     runs-on: ubuntu-22.04
     needs: integration
     steps:
