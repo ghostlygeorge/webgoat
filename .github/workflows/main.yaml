@@ -56,15 +56,16 @@ jobs:
 
       - name: Run Safety scan
         run: |
-          docker run --rm -v ${{ github.workspace }}:/src hysnsec/safety check -r requirements.txt --json > oast-results.json
+          docker run --rm -v ${{ github.workspace }}:/src hysnsec/safety \
+            check -r requirements.txt --json > oast-results.json
         continue-on-error: true
 
       - name: Upload OAST results
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: Safety
           path: oast-results.json
+        if: always()
 
   oast2:
     name: dependency_test
@@ -75,48 +76,54 @@ jobs:
         uses: actions/checkout@v3
 
       - name: depcheck
-        uses: dependency-check/Dependency-Check_Action@main
-        id: Depcheck
-        with:
-          project: 'webgoat'
-          path: '.'
-          format: 'JSON'
-        continue-on-error: true  # must be on same level as `uses`, but GitHub Actions only supports `continue-on-error` for `run`, not `uses`.
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/src dependencycheck/dependency-check \
+            --project webgoat \
+            --scan /src \
+            --format JSON
+        continue-on-error: true
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
         with:
           name: Depcheck report
           path: reports
-		  
+        if: always()
+
   secret_scan:
-	name:trufflehog_secrets_canning
-	runs-on: ubuntu-22.04
-	needs: oast2
-	steps:
-	  - uses: actions/checkout@v3
-	  - run: docker run -rm -v $(pwd):/src hysnsec/trufflehog filesystem --directory=/src --json > trufflehog-output.json
-	    continue-on-error: true
-	  - uses: actions/upload-artifact@v4
-	    with: 
-		  name: Trufflehog
-		  path: trufflehog-output.json
-		if:always()
-		
+    name: trufflehog_secrets_scan
+    runs-on: ubuntu-22.04
+    needs: oast2
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run TruffleHog
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/src \
+            hysnsec/trufflehog filesystem --directory=/src --json > trufflehog-output.json
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Trufflehog
+          path: trufflehog-output.json
+        if: always()
+
   sast:
     name: bandit_sast
     runs-on: ubuntu-22.04
-	needs: secret_scan
-	steps:
-	  - uses: actions/checkout@v3
-	  - run: docker run -rm -v$(pwd):/src hysnsec/bandit -r /src -f json /src/bandit_output.json
-	    continue-on-error: true
-	  - uses: actions/upload-artifact@v4
-	    with:
-		  name: bandit
-		  path: bandit_output.json
-		if:always()
-	
+    needs: secret_scan
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run Bandit
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/src \
+            hysnsec/bandit -r /src -f json > bandit_output.json
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bandit
+          path: bandit_output.json
+        if: always()
+
   integration:
     runs-on: ubuntu-22.04
     needs: bandit_sast
