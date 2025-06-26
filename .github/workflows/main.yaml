@@ -10,4 +10,3 @@ jobs:
     uses: org/sharedlib/.github/workflows/security.yaml@main
     with:
       message: "Hello from target repo"
-
